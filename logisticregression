@@ -1,0 +1,276 @@
+---
+title: 
+author: 
+date: 
+output: 
+    pdf_document:
+      latex_engine: xelatex
+always_allow_html: yes
+---
+
+```{r setup, include=FALSE, echo=FALSE}
+# DO NOT ALTER CODE IN THIS CHUNK
+
+knitr::opts_chunk$set(echo = FALSE, message=FALSE, warning=FALSE)
+library(knitr)
+library(dplyr)
+library(ggplot2)
+library(sjPlot)
+library(sjmisc)
+library(sjlabelled)
+library(rms)
+library(arm)
+library(pROC)
+library(e1071)
+library(caret)
+library(rms)
+
+library("kableExtra")
+
+r = getOption("repos")
+r["CRAN"] = "http://cran.us.r-project.org"
+options(repos = r)
+
+```
+
+```{r}
+smoke <- read.csv("smoking.csv",
+                sep = ",",dec=",")
+smoke$mrace[smoke$mrace<6] <- 0   #Race categories from 0 - 5 are all collapsed to white
+smoke$med[smoke$med==7] <- 6 ## 6 and 7 are collapsed to trade school
+smoke$premature <- 0 
+smoke$premature[smoke$gestation<270] <-1
+smoke$premature_fac <- factor(smoke$premature)
+
+smoke$mrace <- factor(smoke$mrace)
+smoke$inc <- factor(smoke$inc)
+smoke$med <- factor(smoke$med)
+smoke$smoke <- factor(smoke$smoke)
+```
+
+
+
+# 1. Introduction
+
+The main question of interest is:
+(1) Compared to non-smoking mothers, do smoking mothers have higher possibility of giving premature birth? 
+(2) Can we find any evidence that the chances of giving premature birth differs by mother's race? 
+(3) Besides the variables mentioned above, are there any other interesting findings?
+
+In this report, I have made logistic regression model to address the questions. 
+
+
+# 2. Data 
+
+
+```{r, fig.show = 'hide'}
+ 
+## numeric var. vs response variable
+## should be looking at median value and also the overall distribution 
+
+ggplot(smoke,aes(x=parity, y=premature_fac, fill=parity)) +
+  geom_boxplot() + coord_flip() +
+  scale_fill_brewer(palette="Reds") +
+  labs(title="Parity vs Gestation",
+       x="Parity",y="Gestation") + 
+  theme_classic() + theme(legend.position="none")
+
+ggplot(smoke,aes(x=mage, y=premature_fac, fill=mage)) +
+  geom_boxplot() + coord_flip() +
+  scale_fill_brewer(palette="Reds") +
+  labs(title="Age vs Gestation",
+       x="Age",y="Gestation") + 
+  theme_classic() + theme(legend.position="none")
+
+ggplot(smoke,aes(x=mht, y=premature_fac, fill=mht)) +
+  geom_boxplot() + coord_flip() +
+  scale_fill_brewer(palette="Reds") +
+  labs(title="Height vs Gestation",
+       x="Height",y="Gestation") + 
+  theme_classic() + theme(legend.position="none")
+
+
+ggplot(smoke,aes(x=mpregwt, y=premature_fac, fill=mpregwt)) +
+  geom_boxplot() + coord_flip() +
+  scale_fill_brewer(palette="Reds") +
+  labs(title="Preg Weight vs Premature",
+       x="Preg Weight",y="Premature") + 
+  theme_classic() + theme(legend.position="none")
+```
+
+
+```{r, results='hide', include=FALSE}
+#백인인 0의 경우, 조산 확률 0.16 으로 낮고 인종8은 0.32로 높음 
+# 카이 테스트 p-value 0.05보다 낮기 때문에 둘은 관련 있음 - just related, dont know if it's negative/positively. But we can look at the numbers and find out 
+tapply(smoke$premature_fac, smoke$mrace, function(x) table(x)/sum(table(x)))
+chisq.test(table(smoke[,c("premature_fac","mrace")]))
+```
+
+```{r, results='hide', include=FALSE}
+# 소득구간 0 인 경우 조산 확류이 0.27 정도로 걔 중 높은 편이나 전반적 차이 없음
+# 카이 테스트 결과 둘은 아무 관계 없음 
+tapply(smoke$premature_fac, smoke$inc, function(x) table(x)/sum(table(x)))
+chisq.test(table(smoke[,c("premature_fac","inc")]))
+```
+
+```{r, results='hide', include=FALSE}
+# Higher level of education, lower prob of premature birth 
+# 카이 테스트 결과 둘은 관련 있음 
+tapply(smoke$premature_fac, smoke$med, function(x) table(x)/sum(table(x)))
+chisq.test(table(smoke[,c("premature_fac","med")]))
+```
+
+```{r, results='hide', include=FALSE}
+# Smoking moms tend to give pre-term birth 
+# But chi-squared test says they are not related
+tapply(smoke$premature_fac, smoke$smoke, function(x) table(x)/sum(table(x)))
+chisq.test(table(smoke[,c("premature_fac","smoke")]))
+```
+
+
+# Binned plots should not show any specific trend (should be randomly distributed) 
+```{r} 
+# binnedplots of continuous predictors versus switch
+par(mfrow=c(2,2)) 
+binnedplot(y=smoke$premature,smoke$mht,xlab="Height",ylim=c(0,1),col.pts="navy",
+           ylab ="Premature baby?",main="Height and Premature",
+           col.int="white")
+
+binnedplot(y=smoke$premature,smoke$mpregwt,xlab="Pregnancy Weight",ylim=c(0,1),col.pts="navy",
+           ylab ="Premature baby?",main="Pregnancy Weight and Premature",
+           col.int="white")
+
+binnedplot(y=smoke$premature,smoke$mage,xlab="Age",ylim=c(0,1),col.pts="navy",
+           ylab ="Premature baby?",main="Age and Premature",
+           col.int="white")
+
+binnedplot(y=smoke$premature,smoke$parity,xlab="Parity",ylim=c(0,1),col.pts="navy",
+           ylab ="Premature baby?",main="Parity and Premature",
+           col.int="white")
+```
+
+# Mean-centered cont.variables for better interpretation
+```{r}
+smoke$parity_c <- smoke$parity - mean(smoke$parity)
+smoke$mage_c <- smoke$mage - mean(smoke$mage)
+smoke$mht_c <- smoke$mht - mean(smoke$mht)
+smoke$mpregwt_c <- smoke$mpregwt - mean(smoke$mpregwt)
+```
+
+```{r}
+base <- glm(premature_fac ~ parity_c + mage_c + mht_c + mpregwt_c + med + mrace + smoke + inc + smoke:mrace, data = smoke, family = binomial(link=logit))
+```
+
+```{r,  fig.show = 'hide'}
+# all inside red line(95% band), looks good 
+# if there is a trend, there is a problem. 근데 뭐가 잘못 되었는지는 알 수 없음 이건 전체 모델을 보고 있는 거임.  
+# 그래서 x 기준으로 다시 binned plot 하는 것임 
+rawresid1 <- residuals(base, "resp") #resp = response scale (true y-predicted probability)
+binnedplot(x=fitted(base),y=rawresid1,xlab="Pred. probabilities",
+           col.int="red4",ylab="Avg. residuals",main="Binned residual plot",col.pts="navy")
+```
+
+
+
+
+```{r}
+# this has to be in the red line & has to look random ??? what are we looking at here? 
+# preg weight has some points out of the red line
+# There are few dots. We can make it binned 
+# 0을 하나로 (무 아이), 1-3 (약간), 그 이상은 같음 선형 관계가 아님...여기 트렌드가 있는지 없는지 확신할 수 없을 만큼 점 갯수가 적음 그리고 패리티 자체의 성격을 생각하면.
+
+par(mfrow=c(2,2)) 
+binnedplot(x=smoke$parity,y=rawresid1,xlab="Parity",
+           col.int="red4",ylab="Avg. residuals",main="Binned residual plot",col.pts="navy")
+binnedplot(x=smoke$mht_c,y=rawresid1,xlab="Height centered",
+           col.int="red4",ylab="Avg. residuals",main="Binned residual plot",col.pts="navy")
+binnedplot(x=smoke$mage_c,y=rawresid1,xlab="Age centered",
+           col.int="red4",ylab="Avg. residuals",main="Binned residual plot",col.pts="navy")
+binnedplot(x=smoke$mpregwt_c,y=rawresid1,xlab="Preg Weight centered",
+           col.int="red4",ylab="Avg. residuals",main="Binned residual plot",col.pts="navy")
+```
+
+```{r}
+# bin parity 
+smoke$paritynew <- rep(0,nrow(smoke))
+smoke$paritynew[smoke$parity==0] <- 1
+smoke$paritynew[smoke$parity==1] <- 2
+smoke$paritynew[smoke$parity==2] <- 2
+smoke$paritynew[smoke$parity==3] <- 2
+smoke$paritynew[smoke$parity>3] <-3
+smoke$paritynew <-factor(smoke$paritynew)
+```
+
+```{r}
+# glm with binned parity - dropped bc anova test
+m1 = glm(premature_fac ~ paritynew + mage_c + mht_c + mpregwt_c + med + mrace + smoke + inc+smoke:mrace, data = smoke, family = binomial(link=logit))
+```
+```{r}
+m3 <- glm(premature_fac ~ mht_c + mpregwt_c + mrace + med+ smoke+ smoke:mrace + mrace:med + mrace:mht_c, data = smoke, family = binomial(link=logit))
+```
+
+```{r, results='hide', include=FALSE}
+# final model = m3_wo
+m3_wo <- glm(premature_fac ~ parity_c + mage_c + mht_c + mpregwt_c  + mrace + smoke + smoke:mrace, data = smoke, family = binomial(link=logit))
+m3 <- glm(premature_fac ~ parity_c + mage_c + mht_c + mpregwt_c + mrace + smoke + smoke:mrace + smoke:mage_c + smoke:parity_c + smoke:mrace + smoke:mpregwt_c, data = smoke, family = binomial(link=logit))
+anova(m3_wo, m3,test= "Chisq" )
+```
+
+```{r, results='hide', include=FALSE} 
+##forward
+NullModel <- glm(premature~1,data=smoke,family=binomial(link="logit"))
+FullModel <- glm(premature_fac ~ parity_c + mage_c + mht_c + mpregwt_c  + mrace + smoke + smoke:mrace, data = smoke, family = binomial(link=logit))
+
+Model_stepwise <- step(NullModel, scope = formula(FullModel),direction="both",trace=0)
+Model_stepwise$call
+
+summary(Model_stepwise)
+```
+
+```{r}
+final <- glm(premature_fac ~ mpregwt_c  + mrace + smoke + smoke:mrace, data = smoke, family = binomial(link=logit))
+```
+
+
+```{r}
+sn = summary(final)
+sn$coefficients %>% kable(digit=2)
+```
+
+```{r}
+kable(vif(final))
+```
+
+
+```{r, fig.height=3, fig.width=7}
+par(mfrow=c(1,2)) 
+roc(smoke$premature,fitted(final),plot=T,print.thres="best",legacy.axes=T,
+    print.auc =T,col="red3")
+
+rawresid1 <- residuals(final, "resp") #resp = response scale (true y-predicted probability)
+binnedplot(x=fitted(final),y=rawresid1,xlab="Pred. probabilities",
+           col.int="red4",ylab="Avg. residuals",main="Binned residual plot",col.pts="navy")
+
+Conf_mat <- confusionMatrix(as.factor(ifelse(fitted(final) >= 0.5, "1","0")),
+                            as.factor(smoke$premature),positive = "1")
+```
+
+# 3-2. Model Assessment 
+
+# This confusion matrix is based on 0.5 level is depicted below. 
+# The sensitivity level is extremely low. That is, this model is valid for identifying actual cases but also has high rate of false positives.
+```{r}
+Conf_mat <- confusionMatrix(as.factor(ifelse(fitted(final) >= 0.5, "1","0")),
+                            as.factor(smoke$premature),positive = "1")
+Conf_mat$overall["Accuracy"] %>% kable(digit=2);
+Conf_mat$byClass[c("Sensitivity","Specificity")]  %>% kable(digit=4)
+```
+
+
+```{r}
+mean <- mean(as.numeric(smoke$smoke)-1)
+Conf_mat <- confusionMatrix(as.factor(ifelse(fitted(final) >= mean(smoke$premature), "1","0")),
+                            as.factor(smoke$premature),positive = "1")
+Conf_mat$overall["Accuracy"] %>% kable(digit=2);
+Conf_mat$byClass[c("Sensitivity","Specificity")]  %>% kable(digit=2)
+```
