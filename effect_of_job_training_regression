@@ -1,0 +1,445 @@
+
+---
+title: 
+author: 
+date: "09/27/20"
+output:
+  pdf_document: default
+  html_document:
+    highlight: pygments
+    theme: spacelab
+---
+
+```{r setup, include=FALSE}
+# DO NOT ALTER CODE IN THIS CHUNK
+# The very first time you use this R markdown file, you should install each of the packages below.
+# The same goes for other packages you might decide to use
+# Remember that you only need to install each R package once in R (ever -- unless you change computers).
+# All you need to do whenever you need to use the package again (after restarting the R session),
+# is to use the library function to call the package.
+# For example, type install.packages("knitr") in the console to install the knitr package. 
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+library(knitr)
+library(dplyr)
+library(ggplot2)
+library(tidyverse)
+library(arm)
+library(pROC)
+library(e1071)
+library(caret)
+require(gridExtra)
+library(rms)
+library(pander)
+library(xtable)
+```
+
+* * *
+
+\newpage
+## Part 1
+
+```{r}
+# Enter your code for loading the data here
+lalonde <- read.csv('lalondedata.csv')
+lalonde$treat <- factor(lalonde$treat)
+lalonde$black <- factor(lalonde$black)
+lalonde$hispan <- factor(lalonde$hispan)
+lalonde$married <- factor(lalonde$married)
+lalonde$nodegree <- factor(lalonde$nodegree)
+lalonde$educ_bin <- ifelse(lalonde$educ < 9, "lt_hs", ifelse(lalonde$educ > 12, "gt_hs", "hs"))
+lalonde$educ_bin <- factor(lalonde$educ_bin)
+lalonde$wage_diff <- lalonde$re78 - lalonde$re74
+lalonde$age_sq <- (lalonde$age)^2
+lalonde$pos_wage <- ifelse(lalonde$re78 <= 0, 0, 1)
+lalonde$pos_wage_fac <- factor(lalonde$pos_wage)
+```
+
+### Introduction
+
+A study was conducted by the National Supported Work (NSW) to assess effectiveness of job training on disadvantaged workers. In this analysis, a subset of the data was used to dig deeper into the effect of job training on disadvantaged worker’s wages.
+In particular, this analysis is focused on finding the evidence that workers who receive job training tend to earn higher wages than workers who do not, and the likely range for the effect of training. Also, this analysis explores interesting associations with wages and other predictors. 
+To address questions of interest, a multiple linear regression model was built to predict the difference in wages for disadvantaged workers between 1974 and 1978 based on variables such as whether or not they received training, years of education, race, ethnicity, age, marital status, and degree obtained. According to the final model, job training was positively associated with wage difference after age 18. The significant variables were job training, age, interaction between age and job training.
+
+### Data
+
+We created a new response variable to capture the change in wage growth before and after the training program. 
+This variable was created by subtracting 1974 wage from 1978. A histogram of the response variable was plotted to check normality assumption, and whether any transformation is needed. 
+The response variable seemed to be normally distributed, and thus did not require transformation.
+For the predictors, job training, race, ethnicity, marital status, degree obtained was considered as factor variable, whereas age and education was considered as continuous variable.
+When exploring data, box plots and scatter plots were created to explore relationships between variables. 
+The most notable relationship was the association between age and wage difference categorized by job training.
+ 
+```{r}
+ggplot(lalonde, aes(x =age, y = wage_diff)) +
+  geom_point(alpha = .5,colour="blue4") +
+  geom_smooth(method="lm",col="red3") +
+  labs(title="Wage difference vs age by treatment", x="Age",y="Wage difference") +
+  facet_wrap( ~ treat,ncol=4)
+```
+
+For the workers who did not receive job training, there are a number of data points with negative wage differential especially in the age range of 40 to 50. 
+On the contrary, there were not many data points with a negative wage differential for workers who received job training. 
+This plot seemed to demonstrate that further investigation is needed on the variables age and job training and their interactions.
+
+### Model
+
+#### Model Selection
+
+After the EDA, we performed the model selection. We decided to use stepwise model selection procedures. 
+Since we are most interested in the association between job training and the difference in wage, our null model included job training. 
+The full model included all the variables in this dataset. We used two selection methods: stepwise selection using AIC and stepwise selection using BIC. 
+The model minimizes AIC and the model minimizes BIC had the same predictors: job training, age, and married, and all three variables are significant at 0.05 level (see Appendix). 
+The result of the F-test proved that adding any other predictor would not improve this model (see Appendix), so we are convinced that our model would include job training, age and married. 
+
+From EDA, we found the interaction between age and treat to be interesting, so we wanted to further explore if including this interaction would improve the model. 
+The f-test confirmed that including the interaction would improve the model, with p-value equals to .003 (see appendix).
+
+Hence, we decided our final model to be: …
+$$\hat{y} = \beta_0 + \beta_1 x_{age} + \beta_2 x_{married} + \beta_3 x_{treat} + \beta_4 x_{age:treat}$$
+
+
+```{r} 
+final <- lm(wage_diff~ age + treat + married + age:treat, data=lalonde)
+pander(summary(final))
+```
+
+From the final model, the coefficient for intercept is 6072: for a worker who is at the age of 0, received no training, and unmarried, we expect his/her wage to be on average $6072. 
+If marital status changes from unmarried to married, we expect a worker to earn $1757 less on average, holding everything else constant. 
+Age on its own is negatively associated with wage. As age increases by 1 additional year, the wage is expected to decrease by $136. 
+Moreover, job training on its own, is negatively associated with wage as well. When everything else holds constant, and when the workers receive job training, we expect the wage to decrease by $4586 on average. 
+This seems to be counterintuitive. However, we must consider the effect of the interaction term: the wage for the trained group would be boosted $256 per year compared to the untrained group. So as a worker grows older, if he is trained, the growth in age would bring much more increase in wage than if he is untrained. We predicted that, as soon as a worker turned 18, if other variables held constant, he would earn more if he is trained. 
+
+#### Model Assessment
+
+We checked the 4 model assumptions: Linearity, independence, equal variance, and normality. There are no serious violations found in the plot (see Appendix). 
+We also generated the 95% confidence interval (see Appendix). The effect of job training for disadvantaged workers on annual earnings was -$9,268 to $95. 
+Moreover, we checked the VIFs and confirmed that there is no multicollinearity issue (See Appendix). 
+Finally, we checked the cook's distance for outliers. There is no point fall outside of the 0.5 cook’s distance line, indicating that there is no issue with outliers. 
+
+### Conclusion
+
+In this analysis, the association between wage and job training was explored. The final model confirmed that after the age of 18, job training was positively correlated with earning higher wages. 
+It also confirmed that the effect of job training differed by age. For every additional increase in age, wage is expected to increase by $120 for trained workers and decrease by $136 for non-trained workers, holding everything else constant.
+There are potential limitations of this study. First, macroeconomic factors are not considered. For example, US economy was acutely strained by the oil crisis in 1973. Since the data is mostly collected in 1974 and 1978, the predictors and response variable used in this analysis could have been affected seriously by the macroeconomic factor. 
+Another limitation is that the data did not specify zero-income. In this analysis, zero income was considered as unemployability, but it could also indicate retirement or going back to school.
+
+\newpage
+## Part 2
+
+### Summary
+ 
+From a 1970s study conducted by the National Supported Work (NSW), we assessed whether or not workers who received job training were more likely to have positive wages than those who did not.
+Using data on workers such as whether or not an individual received job training, education, race, and marital status, we created a logistic regression model to predict the odds of having non-zero wages. 
+Ultimately, it was determined that the most important feature in predicting the log-odds of non-zero wages is the age of the individual with relation to whether or not they did job training. 
+ 
+### Introduction
+ 
+Based on data collected from the 1970s study done by the NSW on disadvantaged workers, we were tasked with determining if there is an association between job training and positive wages. We aim to quantify the effect of job-training on the odds of having non-zero (positive) wages, determine a likely range for the effect of job training on wages, discover any differences between demographic groups, and other interesting associations with the odds of positive wages.
+In order to sufficiently answer these questions, we performed exploratory data analysis to understand our data, fitted logistic regression models with appropriate features, and interpreted the results.
+ 
+### Data
+ 
+Since we are interested in the relationship between job training and positive wages, we explored the distributions of the variables in the dataset using box plots and tables.
+The box plot below shows the relationship between the age of workers and positive wages split by job training. Since the median age values and distributions vary when split by positive wages and job training, this interaction was something we intend to explore further when modeling. Additional interaction relationships explored can be found in the appendix.
+ 
+```{r}
+ggplot(lalonde, aes(x=pos_wage_fac, y=age, fill=pos_wage_fac)) +
+  geom_boxplot() + #coord_flip() +
+  scale_fill_brewer(palette="Reds") +
+  labs(title="Age vs. Positive Wage by Job Training",
+       x="Positive Wage",y="Age") + 
+  theme_classic() + theme(legend.position="none") +
+  #scale_x_discrete(labels=c("0" = "No","1" = "Yes")) +
+  facet_wrap( ~ treat)
+```
+
+Since this dataset contained quite a few factor variables, conditional probability tables were created to explore the relationship between positive wages and these categorical predictors to determine potential dependencies between them, which were then verified to be statistically significant or insignificant by a chi-squared test. From these tests, the dependency between Black and positive wages were found to be statistically significant. We’ll explore this relationship further in the modeling section. The other conditional probability tables can be viewed in the Appendix.
+
+
+### Model
+
+We selected our final model using a combination of the model selected using stepwise AIC and anova f-tests with other predictors. 
+Before inputting our non-categorical variables, we centered them to make interpretation easier. For our stepwise model, we put treat in the Null model and all the independent variables and several of the interesting interactions we observed in our EDA in the full model. 
+The step test determined that only age and race(black) were significant, and job training (treat) was included regardless because it is central to the purpose of the experiment. We ran ANOVA tests comparing this model to models including independent variables one at a time to evaluate their importance. Ultimately, the F-test identified the interaction between age and job training to be significant.
+When examining the model, there are no clear violations of the assumptions. The binned residuals plot has one point outside the .95 limits, but this is not concerning relative to the number of data points in the study. The VIF does not reveal any issues with multicollinearity, all values are relatively low. The output of our final model can be seen below.
+
+```{r}
+lalonde$age_c <- lalonde$age - mean(lalonde$age)
+lalonde$age_sq_c <- lalonde$age_sq - mean(lalonde$age_sq)
+
+finalreg <- glm(formula = pos_wage_fac ~  age_c + black + treat + treat:age_c, family = binomial, data = lalonde)
+pander(summary(finalreg))
+```
+
+The residual deviance of our model is 643.5, which is less than the Null deviance of 666.5. Although the decrease is relatively small, the fact that our residual deviance is less than the Null indicates that using these dependent variables increases the accuracy of the models predictions from the Null. 
+
+The intercept in the final model includes the baseline assumptions of a nonblack, untrained individual who is the mean age of the population in this dataset.  
+The intercept for this model is 1.46, meaning that an individual who fits this above criteria is the log odds of 1.46 more likely to have a non zero wage. 
+
+It is important to highlight that we did not find job training to have a statistically significant effect at the .05 level. 
+In the regression output, it has a p-value of .17. However, since it is central to the question we are attempting to answer in this experiment, we kept it in the model. 
+The coefficient for treat is 0.36, meaning that those who received job training are the log odds of .36 more likely to have a non-zero income than someone who did not receive training, holding all other variables constant. 
+This does not tell the whole story however, as the interaction between age and treat is positive. This means that for people who receive training, for every additional year of their age the likelihood of them having a non-zero wage increases. 
+Digging deeper, this variable has a 95% confidence interval of -0.15 to 0.89, meaning that we are 95% confident based upon this data that the true effect job training has on causing a non-zero wage differentials ranges from a decrease in log odds of 0.15 to an increase by the log odds of 0.89.
+
+Age centered is our first statistically significant variable . The coefficient for this variable is  -0.04 indicating that holding all other variables constant, for every increase in one year of an individual's age, the log odds of a non-zero income decrease by the log odds of 0.04. 
+
+Race (black) is also a statistically significant variable with a coefficient of -0.75. This means when all other variables are held constant, being black decreases the log odds of having an income by 0.75 in comparison to a non-black person. 
+
+Finally, the anova test we conducted comparing a model without the interaction between age and training to a model with it found the inclusion of the relationship to be significant. 
+In our model, the default intercept is an untrained individual. The coefficient for age of people who have received job training is 0.06. 
+This means that every one unit increase in age for job trained individuals increases the log odds of having a positive wage by 0.06.
+
+We created a confusion matrix for the final model using the mean of response variable, 0.77, as the threshold rather than 0.50. 
+This makes more sense for this dataset, as the number of people in our data set with a wage is larger than 50%. 
+The model has a sensitivity of 0.53, a specificity of 0.66 and an accuracy of 0.56. In the context of this problem, this means that the model correctly identifies 53% percent of the people with a positive wage in this dataset (true positive), and accurately labels 66% of the people who have no wage in this data set (true negative). 
+Overall, it correctly classifies 56% of the peoples wages. The confusion matrix for this information can be seen below. 
+
+```{r}
+
+confusion_matrix <- confusionMatrix(as.factor(ifelse(fitted(finalreg) >= mean(lalonde$pos_wage), "1","0")), as.factor(lalonde$pos_wage),positive = "1")
+kable(xtable(confusion_matrix$table, title = 'Confusion Matrix'))
+# confusion_matrix$overall["Accuracy"];
+# confusion_matrix$byClass[c("Sensitivity","Specificity")]
+```
+
+Below is the ROC graph for the final model.The area under the curve (AUC) is 0.62. An AUC of 1.0 would mean a perfect model that predicts everything correctly, and an AUC of 0.5 indicates the model is no better than random chance.
+
+```{r fig.width=3.7, fig.height=3.5, echo=FALSE, message=FALSE}
+rawresid_final <- residuals(finalreg,"resp")
+binnedplot(x=fitted(finalreg),y=rawresid_final,xlab="Pred. probabilities",
+           col.int="red4",ylab="Avg. residuals",main="Binned residual plot",col.pts="navy")
+
+invisible(roc(lalonde$pos_wage_fac,fitted(finalreg),plot=T,print.thres="best",legacy.axes=T,
+    print.auc =T,col="red3", main=('Final Model ROC')))
+
+par(mfrow=c(2,2))
+```
+
+### Conclusion
+ 
+In conclusion, the final model indicated that the most important feature in determining the log-odds of having a non-zero wage is the individual's age. 
+For all untrained individuals, there is a negative relationship between an increasing age and the odds of having a non-zero wage. 
+For trained individuals however, the relationship is positive. Whether or not an individual received job training was not a statistically significant feature which means there is no association between job training and positive wages. 
+Additionally, there was an association found between an individual being black and the log-odds of a positive wage.
+ 
+Overall, there were a few limitations of this analysis. First, macroeconomic factors were not considered in our analysis. 
+As mentioned in the conclusion for Part 1, the US economy was acutely strained by the oil crisis in 1973, which was not considered in predicting positive wages. 
+This is important as wages could have been seriously affected by this crisis and thus, skewing our final results. 
+Second, as mentioned above, we considered zero income as unemployability, but it’s possible this could also mean someone retired or was pursuing further education. 
+Third, the dataset did not have sufficient data points to analyze ethnicity (hispan).
+
+* * *
+
+\newpage
+### Appendix
+
+#### Part 1
+
+## Appendix 1A: Histogram for the response variable
+```{r echo=TRUE}
+ggplot(data=lalonde, aes(x=wage_diff)) + geom_histogram(bins=30) + ggtitle("Distribution of wage_diff")
+```
+
+```{r echo=TRUE,fig.show='hide'}
+ggplot(lalonde, aes(x =age, y = wage_diff)) +
+  geom_point(alpha = .5,colour="blue4") +
+  geom_smooth(method="lm",col="red3") +
+  labs(title="Wage difference vs age by treatment", x="Age",y="Wage difference") +
+  facet_wrap( ~ treat,ncol=4)
+```
+
+## Appendix 1B: Summary of AIC and BIC Model
+
+```{r echo=TRUE}
+NullModel <- lm(wage_diff~treat,data=lalonde)
+FullModel <- lm(wage_diff~treat+black+age+hispan+educ+nodegree, data = lalonde)
+
+Model_stepwise <- step(NullModel, scope = formula(FullModel),direction="both",trace=0)
+pander(summary(Model_stepwise))
+```
+
+
+## Appendix 1C: F-test for interaction
+
+```{r echo=TRUE}
+anova(Model_stepwise, lm(wage_diff ~ treat + age + married+age:treat,data = lalonde))
+```
+
+
+```{r echo=TRUE,fig.show='hide'}
+final <- lm(wage_diff~ age + treat + married + age:treat, data=lalonde)
+pander(summary(final))
+```
+
+
+## Appendix 1D: Final Model Assumption Check
+
+```{r echo=TRUE}
+ggplot(lalonde, aes(x=age, y=final$residual)) + geom_point(alpha=.7) + 
+  geom_hline(yintercept=0, col ="red3") + theme_classic() + labs(title = "Residual vs. Age")
+plot(final, which=c(1,2))
+```
+
+## Appendix 1E: Final Model Confidence Interval
+
+```{r echo=TRUE}
+confint(final)
+```
+
+
+## Appendix 1F: VIF for Final Model
+
+```{r echo=TRUE}
+vif(final)
+```
+
+#### Part 2
+
+## Appendix 2A: Distribution for the response variable and EDA
+```{r echo=TRUE}
+
+apply(table(lalonde[,c("pos_wage_fac","treat")])/sum(table(lalonde[,c("pos_wage_fac","treat")])),
+      2,function(x) x/sum(x))
+chisq.test(table(lalonde[,c("pos_wage_fac","treat")]))
+
+apply(table(lalonde[,c("pos_wage_fac","hispan")])/sum(table(lalonde[,c("pos_wage_fac","hispan")])),
+      2,function(x) x/sum(x))
+chisq.test(table(lalonde[,c("pos_wage_fac","hispan")]))
+
+apply(table(lalonde[,c("pos_wage_fac","black")])/sum(table(lalonde[,c("pos_wage_fac","black")])),
+      2,function(x) x/sum(x))
+chisq.test(table(lalonde[,c("pos_wage_fac","black")]))
+
+apply(table(lalonde[,c("pos_wage_fac","nodegree")])/sum(table(lalonde[,c("pos_wage_fac","nodegree")])),
+      2,function(x) x/sum(x))
+chisq.test(table(lalonde[,c("pos_wage_fac","nodegree")]))
+
+ggplot(lalonde, aes(x=pos_wage_fac)) +
+  geom_bar() +
+  labs(title="Distribution of positive wage (response variable)",
+       x="Positive Wage",y="Count") + 
+  theme_classic() + theme(legend.position="none")
+
+ggplot(lalonde, aes(x=pos_wage_fac, y=age, fill=pos_wage_fac)) +
+  geom_boxplot() + #coord_flip() +
+  scale_fill_brewer(palette="Reds") +
+  labs(title="Age vs. Positive Wage by Education",
+       x="Positive Wage",y="Age") + 
+  theme_classic() + theme(legend.position="none") +
+  #scale_x_discrete(labels=c("0" = "No","1" = "Yes")) +
+  facet_wrap( ~ educ)
+
+ggplot(lalonde, aes(x=pos_wage_fac, y=age, fill=pos_wage_fac)) +
+  geom_boxplot() + #coord_flip() +
+  scale_fill_brewer(palette="Reds") +
+  labs(title="Age vs. Positive Wage by Education Bin",
+       x="Positive Wage",y="Age") + 
+  theme_classic() + theme(legend.position="none") +
+  #scale_x_discrete(labels=c("0" = "No","1" = "Yes")) +
+  facet_wrap( ~ educ_bin)
+
+ggplot(lalonde, aes(x=pos_wage_fac, y=age, fill=pos_wage_fac)) +
+  geom_boxplot() + #coord_flip() +
+  scale_fill_brewer(palette="Reds") +
+  labs(title="Age vs. Positive Wage by Black",
+       x="Positive Wage",y="Age") + 
+  theme_classic() + theme(legend.position="none") +
+  #scale_x_discrete(labels=c("0" = "No","1" = "Yes")) +
+  facet_wrap( ~ black)
+
+ggplot(lalonde, aes(x=pos_wage_fac, y=age, fill=pos_wage_fac)) +
+  geom_boxplot() + #coord_flip() +
+  scale_fill_brewer(palette="Reds") +
+  labs(title="Age vs. Positive Wage by Hispan",
+       x="Positive Wage",y="Age") + 
+  theme_classic() + theme(legend.position="none") +
+  #scale_x_discrete(labels=c("0" = "No","1" = "Yes")) +
+  facet_wrap( ~ hispan)
+
+ggplot(lalonde, aes(x=pos_wage_fac, y=age, fill=pos_wage_fac)) +
+  geom_boxplot() + #coord_flip() +
+  scale_fill_brewer(palette="Reds") +
+  labs(title="Age vs. Positive Wage by Married",
+       x="Positive Wage",y="Age") + 
+  theme_classic() + theme(legend.position="none") +
+  #scale_x_discrete(labels=c("0" = "No","1" = "Yes")) +
+  facet_wrap( ~ married)
+
+ggplot(lalonde, aes(x=pos_wage_fac, y=age, fill=pos_wage_fac)) +
+  geom_boxplot() + #coord_flip() +
+  scale_fill_brewer(palette="Reds") +
+  labs(title="Age vs. Positive Wage by No Degree",
+       x="Positive Wage",y="Age") + 
+  theme_classic() + theme(legend.position="none") +
+  #scale_x_discrete(labels=c("0" = "No","1" = "Yes")) +
+  facet_wrap( ~ nodegree)
+
+ggplot(lalonde, aes(x=pos_wage_fac, y=(age^2), fill=pos_wage_fac)) +
+  geom_boxplot() + #coord_flip() +
+  scale_fill_brewer(palette="Reds") +
+  labs(title="Age^2 vs. Positive Wage by No Degree",
+       x="Positive Wage",y="Age") + 
+  theme_classic() + theme(legend.position="none") +
+  #scale_x_discrete(labels=c("0" = "No","1" = "Yes")) +
+  facet_wrap( ~ treat)
+```
+
+## Appendix 2B: Summary of AIC Model and Model Evaluation
+```{r}
+wagereg1 <- glm(pos_wage_fac ~ treat + black + hispan + married + nodegree + age + educ + treat: age + treat:hispan + married:age, data = lalonde, family = binomial)
+summary(wagereg1)
+rawresid1 <- residuals(wagereg1,"resp")
+binnedplot(x=fitted(wagereg1),y=rawresid1,xlab="Pred. probabilities",
+           col.int="red4",ylab="Avg. residuals",main="Binned residual plot",col.pts="navy")
+binnedplot(x=lalonde$age,y=rawresid1,xlab="Arsenic centered",
+           col.int="red4",ylab="Avg. residuals",main="Binned residual plot",col.pts="navy")
+binnedplot(x=lalonde$age_sq,y=rawresid1,xlab="Arsenic centered",
+           col.int="red4",ylab="Avg. residuals",main="Binned residual plot",col.pts="navy")
+```
+
+```{r echo=TRUE}
+n <- nrow(lalonde)
+null_model <- glm(pos_wage_fac~treat,data=lalonde,family=binomial)
+aic <- step(null_model,scope=formula(wagereg1),direction="both",
+     trace=0)
+
+bic <- step(null_model,scope=formula(wagereg1),direction="both",
+     trace=0,k = log(n))
+
+summary(aic)
+```
+
+## Appendix 2C: Final Model Selection and Results
+```{r}
+lalonde$age_c <- lalonde$age - mean(lalonde$age)
+finalreg <- glm(formula = pos_wage_fac ~ age_c + black + treat + treat:age_c, family = binomial, data = lalonde)
+# pander(summary(finalreg))
+# roc(lalonde$pos_wage_fac,fitted(finalreg),plot=T,print.thres="best",legacy.axes=T,
+#     print.auc =T,col="red3", main=('Final Model ROC'))
+# rawresid1 <- residuals(finalreg,"resp")
+# binnedplot(x=fitted(finalreg),y=rawresid1,xlab="Pred. probabilities",
+#            col.int="red4",ylab="Avg. residuals",main="Binned residual plot",col.pts="navy")
+```
+
+## Appendix 2D: Final Model Confidence Interval
+```{r}
+confint(finalreg, level = 0.95)
+confusion_matrix <- confusionMatrix(as.factor(ifelse(fitted(finalreg) >= mean(lalonde$pos_wage), "1","0")), as.factor(lalonde$pos_wage),positive = "1")
+# confusion_matrix$table
+# confusion_matrix$overall["Accuracy"];
+# confusion_matrix$byClass[c("Sensitivity","Specificity")]
+```
+
+## Appendix 2E: F-test for interaction
+```{r echo=TRUE}
+test <- glm(formula = pos_wage_fac ~ age +  black + treat, family = binomial, data = lalonde)
+test1 <- glm(formula = pos_wage_fac ~ age+ black + treat + treat:age, family = binomial, data = lalonde)
+# anova(test, test1, test = 'Chisq')
+```
+
+## Appendix 2F: VIF for Final Model
+```{r echo=TRUE}
+vif(finalreg)
+```
+* * *
