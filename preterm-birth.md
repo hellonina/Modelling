@@ -1,13 +1,15 @@
+![hand-painted-no-smoking-sign](https://user-images.githubusercontent.com/71023894/94619139-575e5e00-027a-11eb-8f1f-fa1e024a714b.jpg)
 
 ## Introduction
 
+
+The fact that maternal smoking seriously affects the baby is a common knowledge nowadays. However, this was not the case fifty years ago. One of the first studies to reveal the relationship between maternal smoking and the effect on the baby was first done in the 1960s, and researchers have been developing the idea till now. Although we now all know that smoking during pregnancy is dangerous, this analysis is conducted to compare the odds of giving pre-term birth for a smoking mother versus a non-smoking mother, and if there are any interesting associations among the predictors besides smoking status. 
 
 Our questions of interest is:
 
 * Compared to non-smoking mothers, do smoking mothers have higher possibility of giving pre-term birth? 
 * Can we find any evidence that the chances of giving pre birth differs by mother's race? 
 * Besides the variables mentioned above, are there any other interesting findings?
-
 
 In this report, logistic regression model was made to address the questions of interest. 
 
@@ -32,8 +34,7 @@ ggplot(smoke,aes(x=parity, y=premature_fac, fill=parity)) +
   labs(title="Parity vs Gestation", x="Parity",y="Gestation") + theme_classic() + theme(legend.position="none")
 ---
 ```
-
-![](/assets/img/posts/parity-boxplot.jpg)
+![parity-boxplot 2](https://user-images.githubusercontent.com/71023894/94618578-609afb00-0279-11eb-9085-05baa18daf1a.jpg)
 
 The probabilities for premature birth given mother's race is white was 0.16, which was the lowest of all race categories. On the other hand, when mother's race is asian, odds of premature birth was 0.32, two times higher compared to white mothers. The p-value of premature and race was lower than 0.05, which indicated that these two variables are related and this variable be included in the model. 
 
@@ -67,7 +68,8 @@ binnedplot(y=smoke$premature,smoke$mpregwt,xlab="Pregnancy Weight",ylim=c(0,1),c
 ---
 ```
 
-![](/assets/img/posts/binned-plot.png)
+<img width="774" alt="binned-plot" src="https://user-images.githubusercontent.com/71023894/94618825-cab3a000-0279-11eb-8b2d-352fe9c846ed.png">
+
 
 ## Final Model
 
@@ -79,7 +81,7 @@ After spotting the trend in 'parity' in the binned residual plot, I made parity 
 
 I went back to the baseline model where I had a number of variables and performed stepwise using AIC. The result suggested that I eliminate the interaction between race and smoke but I kept the interaction intentionally. Final model is described below:
 
-![](/assets/img/posts/final-model.png)
+<img width="568" alt="final-model" src="https://user-images.githubusercontent.com/71023894/94618921-f767b780-0279-11eb-9c61-45214917dd3c.png">
 
 Here, yi is odds of premature birth, xi1 is race, xi2 is pregnancy weight (centered), xi3 is whether mother smoked or not, xi4 is interaction between smoke and race. 
 
@@ -129,7 +131,7 @@ Black:Smoke |2.23e |
 Asian:Smoke |1.52e | 
 Mixed:Smoke |1.12e | 
 
-
+<img width="1005" alt="curve" src="https://user-images.githubusercontent.com/71023894/94619970-d30cda80-027b-11eb-8009-e83b758b27da.png">
 
 Looking at the binned residual plots for the final model, we should be checking randomness of the points as well as whether there are many points that are outside the red line. The points are randomly distributed. Also, there are three points that are outside the red line, but because most of them are inside the red line it can be considered okay. The points that are outside the red line are the outliers, and thus we can say that this model has few outliers. The value of AUC is 0.63 which seems to be fine. 
 
