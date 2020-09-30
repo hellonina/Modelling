@@ -15,7 +15,7 @@ This repository is a collection of my projects related to building predictive mo
     * [Analysis report](https://github.com/hellonina/Modelling/blob/master/preterm-birth.md)
 
 3. Analyzing the factors affecting the price of AirBnB listings in Seattle, WA 
-    * [R code] 
+    * [R code](https://github.com/hellonina/Modelling/blob/master/airbnb-listings-code)
     * [Analysis report](https://github.com/hellonina/Modelling/blob/master/airbnb-listings.md)
 
 4. Predicting beer consumption in San Paulo with regards to precipitation, date of the week and temperature
