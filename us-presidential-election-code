@@ -1,0 +1,51 @@
+```{r}
+elec <- read.csv("Elections.csv",sep = ",",dec=",")
+```
+
+```{r} 
+plot(elec$Buchanan2000,elec$Bush2000, main="Scatterplot of Buchanan and Bush Votes", xlab="Buchanan Votes", ylab="Bush Votes", pch=20)
+```
+```{r}
+subset <- elec[c(1:66), c(1:4)]
+```
+
+```{r}
+par(mfrow=c(1,2))
+hist(subset$Buchanan2000, main="Buchanan Votes")
+hist(log(subset$Buchanan2000), main="Buchanan Votes (log)")
+```
+
+```{r}
+par(mfrow=c(2,2))
+library(ggplot2)
+fit <- lm(log(Buchanan2000)~Bush2000, data=subset)
+ggplot(subset, aes(x=Bush2000, y=fit$residual)) + geom_point(alpha=.4) + geom_hline(yintercept=0, col ="red3") + theme_classic() + labs(title="Residuals vs Bush's Votes", x ="Votes for Bush", y="Residuals")
+plot(fit)
+```
+
+```{r}
+par(mfrow=c(2,2))
+newfit <- lm(log(Buchanan2000)~log(Bush2000), data=subset)
+summary(newfit)
+confint(newfit, level=.95)
+ggplot(newfit, aes(x=log(subset$Bush2000), y=newfit$residual)) + geom_point(alpha=.4) + geom_hline(yintercept=0, col ="red3") + theme_classic() 
+plot(newfit)
+```
+
+```{r}
+kable(newfit$coefficients, format = "latex", 
+      caption = "Buchanan Regression Model Output", digits = 2, align = "ccrr") %>%
+  kable_styling(full_width = FALSE, position = "center")
+```
+
+```{r}
+newdata <- data.frame(Bush2000=152846)
+pred <- exp(predict(newfit, newdata, interval="prediction"))
+pred
+```
+
+```{r}
+kable(pred, format = "latex",  col.names = c("Fit", "Lower bound", "Upper bound"),
+      caption = "Prediction Interval", digits = 1, align = "ccrr") %>%
+  kable_styling(full_width = FALSE, position = "center") 
+```
