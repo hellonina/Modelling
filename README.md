@@ -25,4 +25,4 @@ This repository is a collection of my projects related to building predictive mo
 
 5. Analyzing unexpected high votes for Buchanan in US presential election of 2000 
     * [Analysis report](https://github.com/hellonina/Modelling/blob/master/us-presidential-election.md)
-    * [R code] 
+    * [R code](https://github.com/hellonina/Modelling/blob/master/us-presidential-election-code)
