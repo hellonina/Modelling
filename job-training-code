@@ -1,0 +1,178 @@
+
+##loading data and factoring variables
+lalonde <- read.csv('lalondedata.csv')
+lalonde$educ_bin <- ifelse(lalonde$educ < 9, "lt_hs", ifelse(lalonde$educ > 12, "gt_hs", "hs"))
+lalonde$wage_diff <- lalonde$re78 - lalonde$re74
+lalonde$age_sq <- (lalonde$age)^2
+lalonde$pos_wage <- ifelse(lalonde$re78 <= 0, 0, 1)
+fac_cols = ['treat', 'black', 'hispan', 'married', 'nodegree', 'educ_bin', 'pos_wage']
+for (col in fac_cols) {lalonde[[col]] = lalonde[[col]] %>% as.factor()}
+
+```{r echo=TRUE}
+ggplot(data=lalonde, aes(x=wage_diff)) + geom_histogram(bins=30) + ggtitle("Distribution of wage_diff")
+```
+
+
+```{r}
+ggplot(lalonde, aes(x =age, y = wage_diff)) +
+  geom_point(alpha = .5,colour="blue4") +
+  geom_smooth(method="lm",col="red3") +
+  labs(title="Wage differential vs Age by Job training", x="Age",y="Wage differential") +
+  facet_wrap( ~ treat,ncol=4)
+```
+
+```{r echo=TRUE}
+NullModel <- lm(wage_diff~treat,data=lalonde)
+FullModel <- lm(wage_diff~treat+black+age+hispan+educ+nodegree, data = lalonde)
+
+Model_stepwise <- step(NullModel, scope = formula(FullModel),direction="both",trace=0)
+pander(summary(Model_stepwise))
+```
+
+```{r} 
+final <- lm(wage_diff~ age + treat + married + age:treat, data=lalonde)
+pander(summary(final))
+```
+
+```{r echo=TRUE}
+anova(Model_stepwise, lm(wage_diff ~ treat + age + married+age:treat,data = lalonde))
+```
+
+```{r echo=TRUE,fig.show='hide'}
+final <- lm(wage_diff~ age + treat + married + age:treat, data=lalonde)
+pander(summary(final))
+```
+
+```{r echo=TRUE}
+ggplot(lalonde, aes(x=age, y=final$residual)) + geom_point(alpha=.7) + 
+  geom_hline(yintercept=0, col ="red3") + theme_classic() + labs(title = "Residual vs. Age")
+plot(final)
+```
+
+```{r echo=TRUE}
+confint(final)
+```
+
+```{r}
+ggplot(lalonde, aes(x=pos_wage_fac, y=age, fill=pos_wage_fac)) +
+  geom_boxplot() + #coord_flip() +
+  scale_fill_brewer(palette="Reds") +
+  labs(title="Age vs. Positive Wage by Job Training",
+       x="Positive Wage",y="Age") + 
+  theme_classic() + theme(legend.position="none") +
+  #scale_x_discrete(labels=c("0" = "No","1" = "Yes")) +
+  facet_wrap( ~ treat)
+```
+
+```{r echo=TRUE}
+vif(final)
+```
+
+```{r}
+lalonde$age_c <- lalonde$age - mean(lalonde$age)
+lalonde$age_sq_c <- lalonde$age_sq - mean(lalonde$age_sq)
+
+finalreg <- glm(formula = pos_wage_fac ~  age_c + black + treat + treat:age_c, family = binomial, data = lalonde)
+pander(summary(finalreg))
+```
+
+```{r echo=TRUE}
+
+apply(table(lalonde[,c("pos_wage_fac","treat")])/sum(table(lalonde[,c("pos_wage_fac","treat")])),2,function(x) x/sum(x))
+chisq.test(table(lalonde[,c("pos_wage_fac","treat")]))
+
+apply(table(lalonde[,c("pos_wage_fac","hispan")])/sum(table(lalonde[,c("pos_wage_fac","hispan")])),2,function(x) x/sum(x))
+chisq.test(table(lalonde[,c("pos_wage_fac","hispan")]))
+
+apply(table(lalonde[,c("pos_wage_fac","black")])/sum(table(lalonde[,c("pos_wage_fac","black")])),2,function(x) x/sum(x))
+chisq.test(table(lalonde[,c("pos_wage_fac","black")]))
+
+apply(table(lalonde[,c("pos_wage_fac","nodegree")])/sum(table(lalonde[,c("pos_wage_fac","nodegree")])),
+      2,function(x) x/sum(x))
+chisq.test(table(lalonde[,c("pos_wage_fac","nodegree")]))
+
+ggplot(lalonde, aes(x=pos_wage_fac)) +
+  geom_bar() +
+  labs(title="Distribution of positive wage (response variable)",x="Positive Wage",y="Count") + 
+  theme_classic() + theme(legend.position="none")
+
+ggplot(lalonde, aes(x=pos_wage_fac, y=age, fill=pos_wage_fac)) +
+  geom_boxplot() + #coord_flip() +scale_fill_brewer(palette="Reds") +
+  labs(title="Age vs. Positive Wage by Education",x="Positive Wage",y="Age") + 
+  theme_classic() + theme(legend.position="none") +
+  #scale_x_discrete(labels=c("0" = "No","1" = "Yes")) + facet_wrap( ~ educ)
+
+ggplot(lalonde, aes(x=pos_wage_fac, y=age, fill=pos_wage_fac)) +
+  geom_boxplot() + #coord_flip() +scale_fill_brewer(palette="Reds") +
+  labs(title="Age vs. Positive Wage by Education Bin",x="Positive Wage",y="Age") + 
+  theme_classic() + theme(legend.position="none") +
+  #scale_x_discrete(labels=c("0" = "No","1" = "Yes")) +facet_wrap( ~ educ_bin)
+
+ggplot(lalonde, aes(x=pos_wage_fac, y=age, fill=pos_wage_fac)) +
+  geom_boxplot() + #coord_flip() +scale_fill_brewer(palette="Reds") +
+  labs(title="Age vs. Positive Wage by Black", x="Positive Wage",y="Age") + 
+  theme_classic() + theme(legend.position="none") +
+  #scale_x_discrete(labels=c("0" = "No","1" = "Yes")) + facet_wrap( ~ black)
+
+ggplot(lalonde, aes(x=pos_wage_fac, y=age, fill=pos_wage_fac)) +
+  geom_boxplot() + #coord_flip() + scale_fill_brewer(palette="Reds") +
+  labs(title="Age vs. Positive Wage by Hispan", x="Positive Wage",y="Age") + 
+  theme_classic() + theme(legend.position="none") +
+  #scale_x_discrete(labels=c("0" = "No","1" = "Yes")) +facet_wrap( ~ hispan)
+
+ggplot(lalonde, aes(x=pos_wage_fac, y=age, fill=pos_wage_fac)) +
+  geom_boxplot() + #coord_flip() + scale_fill_brewer(palette="Reds") +
+  labs(title="Age vs. Positive Wage by Married", x="Positive Wage",y="Age") + 
+  theme_classic() + theme(legend.position="none") +
+  #scale_x_discrete(labels=c("0" = "No","1" = "Yes")) + facet_wrap( ~ married)
+
+ggplot(lalonde, aes(x=pos_wage_fac, y=age, fill=pos_wage_fac)) +
+  geom_boxplot() + #coord_flip() + scale_fill_brewer(palette="Reds") +
+  labs(title="Age vs. Positive Wage by No Degree",  x="Positive Wage",y="Age") + 
+  theme_classic() + theme(legend.position="none") + #scale_x_discrete(labels=c("0" = "No","1" = "Yes")) + facet_wrap( ~ nodegree)
+
+ggplot(lalonde, aes(x=pos_wage_fac, y=(age^2), fill=pos_wage_fac)) +
+  geom_boxplot() + #coord_flip() + scale_fill_brewer(palette="Reds") +
+  labs(title="Age^2 vs. Positive Wage by No Degree",
+       x="Positive Wage",y="Age") + theme_classic() + theme(legend.position="none") +
+  #scale_x_discrete(labels=c("0" = "No","1" = "Yes")) + facet_wrap( ~ treat)
+```
+
+```{r}
+wagereg1 <- glm(pos_wage_fac ~ treat + black + hispan + married + nodegree + age + educ + treat: age + treat:hispan + married:age, data = lalonde, family = binomial)
+summary(wagereg1)
+rawresid1 <- residuals(wagereg1,"resp")
+binnedplot(x=fitted(wagereg1),y=rawresid1,xlab="Pred. probabilities",col.int="red4",ylab="Avg. residuals",main="Binned residual plot",col.pts="navy")
+binnedplot(x=lalonde$age,y=rawresid1,xlab="Arsenic centered",col.int="red4",ylab="Avg. residuals",main="Binned residual plot",col.pts="navy")
+binnedplot(x=lalonde$age_sq,y=rawresid1,xlab="Arsenic centered", col.int="red4",ylab="Avg. residuals",main="Binned residual plot",col.pts="navy")
+```
+
+```{r echo=TRUE} ##AIC and BIC 
+n <- nrow(lalonde)
+null_model <- glm(pos_wage_fac~treat,data=lalonde,family=binomial)
+aic <- step(null_model,scope=formula(wagereg1),direction="both",trace=0)
+bic <- step(null_model,scope=formula(wagereg1),direction="both",trace=0,k = log(n))
+summary(aic)
+```
+
+lalonde$age_c <- lalonde$age - mean(lalonde$age)
+finalreg <- glm(formula = pos_wage_fac ~ age_c + black + treat + treat:age_c, family = binomial, data = lalonde)
+
+```{r}
+
+confusion_matrix <- confusionMatrix(as.factor(ifelse(fitted(finalreg) >= mean(lalonde$pos_wage), "1","0")), as.factor(lalonde$pos_wage),positive = "1")
+kable(xtable(confusion_matrix$table, title = 'Confusion Matrix'))
+# confusion_matrix$overall["Accuracy"];
+# confusion_matrix$byClass[c("Sensitivity","Specificity")]
+```
+
+```{r fig.width=3.7, fig.height=3.5, echo=FALSE, message=FALSE}
+rawresid_final <- residuals(finalreg,"resp")
+binnedplot(x=fitted(finalreg),y=rawresid_final,xlab="Pred. probabilities",
+           col.int="red4",ylab="Avg. residuals",main="Binned residual plot",col.pts="navy")
+
+invisible(roc(lalonde$pos_wage_fac,fitted(finalreg),plot=T,print.thres="best",legacy.axes=T,
+    print.auc =T,col="red3", main=('Final Model ROC')))
+
+par(mfrow=c(2,2))
+```
