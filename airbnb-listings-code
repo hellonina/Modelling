@@ -1,0 +1,92 @@
+```{r}
+## Loading data and factoring variables
+bnb <- read.table("Listings_QueenAnne.txt",header=TRUE)
+
+bnb$host_is_superhost <- ifelse(bnb$host_is_superhost == "True", 1,
+                         ifelse (bnb$host_is_superhost == "False", 0, NA))
+bnb$host_identity_verified <- ifelse(bnb$host_identity_verified == "True", 1,
+                              ifelse (bnb$host_identity_verified == "False", 0, NA))
+bnb$room_type <- ifelse(bnb$room_type == "Entire home/apt", 1,
+                 ifelse (bnb$room_type == "Private room", 2, 
+                 ifelse (bnb$room_type == "Shared room", 3, NA)))
+fac_cols = c('host_is_superhost', 'host_identity_verified', 'room_type')
+for (col in fac_cols) {
+    bnb[[col]] = bnb[[col]] %>% as.factor()
+}
+```
+
+
+```{r} 
+#checking the distribution for y 
+par(mfrow=c(1,2))
+hist(bnb$price)
+hist(log(bnb$price))
+```
+
+```{r} 
+#plotting against the response variable
+par(mfrow=c(2,2))
+plot(bnb$accommodates, bnb$price)
+plot(bnb$bedrooms, bnb$price)
+plot(bnb$bathrooms, bnb$price)
+```
+
+```{r}
+par(mfrow=c(2,2))
+model <- lm(log(bnb$price)~host_is_superhost+host_identity_verified+room_type+accommodates+bathrooms+ bedrooms, data=bnb)
+summary(model)
+
+ggplot(model, aes(x=bnb$accommodates, y=model$residual)) + geom_point(alpha=.4) + geom_hline(yintercept=0, col ="red3") + theme_classic() 
+ggplot(model, aes(x=bnb$bedrooms, y=model$residual)) + geom_point(alpha=.4) + geom_hline(yintercept=0, col ="red3") + theme_classic() 
+ggplot(model, aes(x=bnb$bathrooms, y=model$residual)) + geom_point(alpha=.4) + geom_hline(yintercept=0, col ="red3") + theme_classic() 
+ggplot(model, aes(x=bnb$room_type, y=model$residual)) + geom_point(alpha=.4) + geom_hline(yintercept=0, col ="red3") + theme_classic() 
+ggplot(model, aes(x=bnb$host_identity_verified, y=model$residual)) + geom_point(alpha=.4) + geom_hline(yintercept=0, col ="red3") + theme_classic()
+ggplot(model, aes(x=bnb$host_is_superhost, y=model$residual)) + geom_point(alpha=.4) + geom_hline(yintercept=0, col ="red3") + theme_classic() 
+plot(model)
+```
+
+```{r}
+par(mfrow=c(2,2))
+new <- lm(log(bnb$price)~host_is_superhost+host_identity_verified+room_type+accommodates+bathrooms+ bedrooms, data=bnb)
+summary(new)
+ggplot(new, aes(x=bnb$bedrooms, y=new$residual)) + geom_point(alpha=.4) + geom_hline(yintercept=0, col ="red3") + theme_classic() 
+plot(new)
+```
+
+```{r}
+sm = summary(model)
+sm$coefficients %>% kable(digit=3)
+```
+
+```{r}
+n <- nrow(model.matrix(new))
+p <- ncol(model.matrix(new))
+lev_threshold <- 2*(p+1)/n
+plot(new, which=4, col=c("blue4"))
+```
+
+```{r}
+#checking leverage scores for the outliers 
+n <- nrow(model.matrix(new))
+p <- ncol(model.matrix(new))
+lev_scores <- hatvalues(new)
+plot(lev_scores,col=ifelse(lev_scores > (2*p/n), 'red2', 'navy'),type="h",
+     ylab="Leverage score",xlab="Obs. number",main="Leverage Scores")
+text(x=c(1:n)[lev_scores > (2*p/n)]+c(rep(2,4),-2,2),y=lev_scores[lev_scores > (2*p/n)],
+     labels=c(1:n)[lev_scores > (2*p/n)])
+```
+
+```{r}
+par(mfrow=c(2,2))
+sub <- subset(bnb, room_type!="3")
+              
+again <- lm(log(sub$price)~host_is_superhost+host_identity_verified+room_type+accommodates+bathrooms+ bedrooms, data=sub)
+summary(again)
+ggplot(again, aes(x=sub$bedrooms, y=again$residual)) + geom_point(alpha=.4) + geom_hline(yintercept=0, col ="red3") + theme_classic() 
+plot(again)
+```
+
+```{r}
+again_table = summary(again)
+again_table$coefficients %>% kable(digit=3)
+```
