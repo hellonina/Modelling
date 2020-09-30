@@ -12,7 +12,7 @@ This repository is a collection of my projects related to building predictive mo
 
 2. Effects of maternal smoking on pre-term birth using logistic regression 
     * [Analysis report](https://github.com/hellonina/Modelling/blob/master/preterm-birth.md)
-    * [R code] 
+    * [R code](https://github.com/hellonina/Modelling/blob/master/preterm-birth-code)
 
 3. Analyzing the factors affecting the price of AirBnB listings in Seattle, WA 
     * [Analysis report](https://github.com/hellonina/Modelling/blob/master/airbnb-listings.md)
