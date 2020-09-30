@@ -19,7 +19,7 @@ This repository is a collection of my projects related to building predictive mo
     * [R code](https://github.com/hellonina/Modelling/blob/master/airbnb-listings-code)
 
 4. Predicting beer consumption in San Paulo with regards to precipitation, date of the week and temperature
-    * [Analysis report](https://github.com/hellonina/Modelling/blob/master/beer-consumption.md
+    * [Analysis report](https://github.com/hellonina/Modelling/blob/master/beer-consumption.md)
     * [R code] 
     
 
