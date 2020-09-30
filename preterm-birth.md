@@ -83,15 +83,15 @@ I went back to the baseline model where I had a number of variables and performe
 
 <img width="568" alt="final-model" src="https://user-images.githubusercontent.com/71023894/94618921-f767b780-0279-11eb-9c61-45214917dd3c.png">
 
-Here, yi is odds of premature birth, xi1 is race, xi2 is pregnancy weight (centered), xi3 is whether mother smoked or not, xi4 is interaction between smoke and race. 
+### Interpretations
 
-Based on the final model, there were no interesting associations with the odds of pre-term birth that are worth mentioning. The one and only interaction term included in the final model (i.e. race:smoke) all had p-values over 0.05. 
+* Based on the final model, there were no interesting associations with the odds of pre-term birth that are worth mentioning. The one and only interaction term included in the final model (i.e. race:smoke) all had p-values over 0.05. 
 
-The p-value for smoke was under 0.05, making it a statistically significant variable. This implies that mothers who smoke have higher chances of giving premature birth compared to non-smoking mothers. When mother smokes, the odds of giving pre-mature birth increases by multiplicative effect e to the exponential 0.46. 95% confidential interval for the predictor smoke is (0.03, 0.90).
+* The p-value for smoke was under 0.05, making it a statistically significant variable. This implies that mothers who smoke have higher chances of giving premature birth compared to non-smoking mothers. When mother smokes, the odds of giving pre-mature birth increases by multiplicative effect e to the exponential 0.46. 95% confidential interval for the predictor smoke is (0.03, 0.90).
 
-The coefficient for race 7 (black) is statistically significant. This indicates that if the mother's race is black, then the odds of pre-mature birth is increased by a multiplicative effect e to the exponential 1.02 compared to the case when mother's race is white. 
+* The coefficient for race 7 (black) is statistically significant. This indicates that if the mother's race is black, then the odds of pre-mature birth is increased by a multiplicative effect e to the exponential 1.02 compared to the case when mother's race is white. 
 
-Another significant variable is pregnancy weight. Keeping everything else constant, as pregnancy weight increases by 1 unit, the odds of pre-mature birth decreases by multiplicative effect e to the exponential 0.01. 95% confidential interval for the predictor pregnancy weight is (-0.02, -0.002).
+* Another significant variable is pregnancy weight. Keeping everything else constant, as pregnancy weight increases by 1 unit, the odds of pre-mature birth decreases by multiplicative effect e to the exponential 0.01. 95% confidential interval for the predictor pregnancy weight is (-0.02, -0.002).
 
 
 
