@@ -7,7 +7,7 @@ This repository is a collection of my projects related to building predictive mo
 
 1. Analyzing the effect of job training on disadvantaged workers in the states using multiple linear regression 
     * [Analysis report](https://github.com/hellonina/Modelling/blob/master/job-training.md) 
-    * [R code] 
+    * [R code](https://github.com/hellonina/Modelling/blob/master/job-training-code)
 
 
 2. Effects of maternal smoking on pre-term birth using logistic regression 
