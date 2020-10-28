@@ -1,7 +1,7 @@
 ![fernsehturm-berlin-from-distance](https://user-images.githubusercontent.com/71023894/94692511-9931e780-0300-11eb-98a8-8f27e5b880b6.jpg)
 
 
-## Overview : Modelling Repository 
+## Overview : Statistical Modeling Repository 
 
 This repository is a collection of projects related to building predictive models and analyzing main predictors that affect the response variable. The projects included in this repository are:
 
